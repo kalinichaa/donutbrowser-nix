@@ -68,10 +68,10 @@
 
 let
   pname = "donutbrowser";
-  version = "0.22.7";
-  srcHash = "sha256-olLUnlj6FAQe73V1uFhUHRfItxPWlJ5BzyGLyhwDnc0=";
-  pnpmDepsHash = "sha256-WSajMu9g9hCM5MPoLfdQtN1rLS+NkQw5/ppBvZacDJw=";
-  cargoDepsHash = "sha256-kMmC5miih5MDLmchY7wjCxiYWAmCL+dWhmiEC97kBWo=";
+  version = "0.23.0";
+  srcHash = "sha256-/Jq+qtX7d+AX501mpFRopfVFg6ttYuA17pgJjob1doU=";
+  pnpmDepsHash = "sha256-KqGM+MjHdwkG1wYuRCe8mx8DwWK5J5mBIcNmsEkreag=";
+  cargoDepsHash = "sha256-8K34yC2mQXBQq5Oq0ZhHUUcmompwPWEcDu0ML9JAz84=";
   playwrightDriverVersion = "1.57.0";
   playwrightDriverHash = "sha256-Z/l4EEYEIpKZsIyK5BufxJsgtdbX3WDCNIoj8qvJlJ8=";
   playwrightDriverReleaseSegment =
@@ -408,6 +408,7 @@ stdenv.mkDerivation {
   patches = [
     ./patches/default-browser-feedback.patch
     ./patches/linux-runtime-prep.patch
+    ./patches/nix-store-app-updates.patch
     ./patches/no-network-fonts.patch
     ./patches/preserve-manual-downloads.patch
     ./patches/quiet-sidecar-builds.patch

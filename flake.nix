@@ -11,14 +11,40 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { self, nixpkgs, flake-utils }:
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      rust-overlay,
+    }:
     let
-      overlay = final: prev: {
-        donutbrowser = final.callPackage ./package.nix { };
+      rustVersion = "1.95.0";
+      donutOverlay = final: prev: {
+        donutbrowser =
+          let
+            rustToolchain = final.rust-bin.stable.${rustVersion}.default;
+            rustPlatform = final.makeRustPlatform {
+              cargo = rustToolchain;
+              rustc = rustToolchain;
+            };
+          in
+          final.callPackage ./package.nix {
+            cargo = rustToolchain;
+            rustc = rustToolchain;
+            inherit rustPlatform;
+          };
       };
+      overlay = nixpkgs.lib.composeManyExtensions [
+        rust-overlay.overlays.default
+        donutOverlay
+      ];
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"

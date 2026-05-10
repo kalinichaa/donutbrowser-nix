@@ -1,0 +1,27 @@
+--- a/src-tauri/src/app_auto_updater.rs
++++ b/src-tauri/src/app_auto_updater.rs
+@@ -474,9 +474,24 @@
+       || Path::new("/etc/zypp/repos.d/donutbrowser.repo").exists()
+   }
+ 
++  /// Check whether the running executable is immutable Nix store content.
++  #[cfg(target_os = "linux")]
++  fn is_running_from_nix_store() -> bool {
++    std::env::current_exe()
++      .map(|path| path.starts_with("/nix/store"))
++      .unwrap_or(false)
++  }
++
+   /// Check if a system package manager repo is configured for this installation.
+   #[cfg(target_os = "linux")]
+   fn is_repo_configured(&self) -> bool {
++    if Self::is_running_from_nix_store() {
++      log::info!(
++        "Executable is running from the Nix store; app updates must be applied through Nix"
++      );
++      return true;
++    }
++
+     let installation_method = self.detect_linux_installation_method();
+     match installation_method {
+       LinuxInstallationMethod::Deb => Self::is_deb_repo_configured(),

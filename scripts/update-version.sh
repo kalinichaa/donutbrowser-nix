@@ -10,6 +10,7 @@ readonly GITHUB_REPO="zhom/donutbrowser"
 readonly GITHUB_API_BASE="https://api.github.com/repos/${GITHUB_REPO}/releases"
 readonly FAKE_HASH="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 readonly PLAYWRIGHT_DRIVER_BASE_URL="https://playwright.azureedge.net/builds/driver"
+readonly UPDATE_BLOCKED_EXIT_CODE=2
 
 PACKAGE_BACKUP=""
 RESTORE_PACKAGE_ON_EXIT=false
@@ -576,6 +577,9 @@ main() {
       "$current_cargo_hash" \
       "$update_needed"
     print_blocked_state "$update_blocked" "$blocked_reason" "$blocked_version" "$blocked_patches" "$refresh_command" "$blocked_details"
+    if [ "$update_blocked" = true ]; then
+      exit "$UPDATE_BLOCKED_EXIT_CODE"
+    fi
     if [ "$update_needed" = true ] && [ "$update_blocked" != true ]; then
       exit 1
     fi
@@ -594,6 +598,9 @@ main() {
       "$current_cargo_hash" \
       false
     print_blocked_state "$update_blocked" "$blocked_reason" "$blocked_version" "$blocked_patches" "$refresh_command" "$blocked_details"
+    if [ "$update_blocked" = true ]; then
+      exit "$UPDATE_BLOCKED_EXIT_CODE"
+    fi
     exit 0
   fi
 
@@ -617,7 +624,7 @@ main() {
       "$current_cargo_hash" \
       false
     print_blocked_state true "source-layout" "$latest_version" "" "" "package.nix version/hash fields were not found"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
 
   log_info "Resolving pnpm dependency hash..."
@@ -638,7 +645,7 @@ main() {
       "$current_cargo_hash" \
       false
     print_blocked_state true "pnpm-hash" "$latest_version" "" "" "$blocked_details"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
   rm -f "$pnpm_error"
   if [ -z "$latest_pnpm_hash" ]; then
@@ -657,7 +664,7 @@ main() {
       "$current_cargo_hash" \
       false
     print_blocked_state true "source-layout" "$latest_version" "" "" "package.nix version/hash fields were not found"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
 
   log_info "Resolving cargo dependency hash..."
@@ -678,7 +685,7 @@ main() {
       "$current_cargo_hash" \
       false
     print_blocked_state true "cargo-hash" "$latest_version" "" "" "$blocked_details"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
   rm -f "$cargo_error"
   if [ -z "$latest_cargo_hash" ]; then
@@ -697,7 +704,7 @@ main() {
       "$latest_cargo_hash" \
       false
     print_blocked_state true "source-layout" "$latest_version" "" "" "package.nix version/hash fields were not found"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
 
   log_info "Verifying full package build..."
@@ -722,7 +729,7 @@ main() {
       "$latest_cargo_hash" \
       false
     print_blocked_state true "build" "$latest_version" "" "" "nix build .#donutbrowser --no-link failed"
-    exit 0
+    exit "$UPDATE_BLOCKED_EXIT_CODE"
   fi
 
   rm -f "$PACKAGE_BACKUP"

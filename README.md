@@ -156,6 +156,14 @@ nix run .#donutbrowser
 nix flake check
 ```
 
+## Updating Nix Installs
+
+When Donut Browser is launched from the Nix store, upstream app updates are applied through Nix instead of the in-app `.deb`/`.rpm` installer. Update the flake input in the consuming configuration, then rebuild or switch that profile:
+
+```bash
+nix flake update donutbrowser --flake /path/to/config
+```
+
 ## Using Cachix
 
 ### With Cachix Automatically
