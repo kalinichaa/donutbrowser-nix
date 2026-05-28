@@ -30,9 +30,17 @@
         donutbrowser =
           let
             rustToolchain = final.rust-bin.stable.${rustVersion}.default;
-            rustPlatform = final.makeRustPlatform {
+            baseRustPlatform = final.makeRustPlatform {
               cargo = rustToolchain;
               rustc = rustToolchain;
+            };
+            # Override fetchCargoVendor to use a patched fetch-cargo-vendor-util.py
+            # that sets a User-Agent header. crates.io returns 403 for unidentified
+            # clients, which breaks the upstream v1 util shipped in the pinned
+            # nixpkgs (rev 15c6719). This works around the issue without bumping
+            # nixpkgs and breaking the rest of the stack.
+            rustPlatform = baseRustPlatform // {
+              fetchCargoVendor = final.callPackage ./nix/fetch-cargo-vendor.nix { };
             };
           in
           final.callPackage ./package.nix {
