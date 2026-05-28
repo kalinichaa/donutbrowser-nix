@@ -70,7 +70,7 @@ let
   pname = "donutbrowser";
   version = "0.24.4";
   srcHash = "sha256-lYKBKD3uO6XoS1O0yN0VdhzWagu8ejukvx/L+2Xa4a8=";
-  pnpmDepsHash = "sha256-98jmS8gGtzaEQD/tM2SsQUH0SBcZVcROLmvYXMxIdIA=";
+  pnpmDepsHash = "sha256-oITwfGNy/ZnHQLBrBEifjOi8VfUpD2OHhcsyqX+0eQ4=";
   cargoDepsHash = "sha256-Ur9K9KeGSHD2ODeuANyFv+z6mddbsS2WpWZZj0m0F7A=";
   playwrightDriverVersion = "1.57.0";
   playwrightDriverHash = "sha256-Z/l4EEYEIpKZsIyK5BufxJsgtdbX3WDCNIoj8qvJlJ8=";
