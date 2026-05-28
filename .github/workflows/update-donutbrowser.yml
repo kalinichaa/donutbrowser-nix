@@ -52,7 +52,11 @@ jobs:
           fi
           set -e
 
-          if [ "$CHECK_EXIT" -ne 0 ] && [ "$CHECK_EXIT" -ne 1 ]; then
+          # Exit codes from update-version.sh:
+          #   0 = no update needed
+          #   1 = update needed and ready to apply
+          #   2 = update blocked (patches don't apply, build failed, etc.) — handled downstream
+          if [ "$CHECK_EXIT" -ne 0 ] && [ "$CHECK_EXIT" -ne 1 ] && [ "$CHECK_EXIT" -ne 2 ]; then
             echo "$CHECK_OUTPUT"
             echo "update-version.sh failed with exit code $CHECK_EXIT"
             exit "$CHECK_EXIT"

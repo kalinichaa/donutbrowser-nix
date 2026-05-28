@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/browser_runner.rs b/src-tauri/src/browser_runner.rs
-index a791f105bc9334dd503341187d9bd2264692fe12..354e5f22c9bff0c5d4cef5f05071bd4af6242da7 100644
+index bc67069425ae3b5a02c8c01da8784439a03dbe1c..e8fe9b1c8d30952d23b5178311e9a5c8002f1494 100644
 --- a/src-tauri/src/browser_runner.rs
 +++ b/src-tauri/src/browser_runner.rs
-@@ -711,6 +711,21 @@ impl BrowserRunner {
+@@ -863,6 +863,21 @@ impl BrowserRunner {
  
            // Launch Camoufox with -profile and -new-tab to open URL in existing instance
            // This works because we no longer use -no-remote flag
@@ -25,7 +25,7 @@ index a791f105bc9334dd503341187d9bd2264692fe12..354e5f22c9bff0c5d4cef5f05071bd4a
              .arg("-profile")
              .arg(&*profile_path_str)
 diff --git a/src-tauri/src/camoufox_manager.rs b/src-tauri/src/camoufox_manager.rs
-index 2d2229fca3a6c7b1b743d7dca08b38305edc5c06..ab3786f0b6098fbe6bb036d1cd4a30df7ab25429 100644
+index f8c27b1388d843f52494189cdceb5ece882e7530..d126627426d6b9a2f3177596f48a6bb9d7060888 100644
 --- a/src-tauri/src/camoufox_manager.rs
 +++ b/src-tauri/src/camoufox_manager.rs
 @@ -1,5 +1,7 @@
@@ -44,10 +44,10 @@ index 2d2229fca3a6c7b1b743d7dca08b38305edc5c06..ab3786f0b6098fbe6bb036d1cd4a30df
  use tokio::sync::Mutex as AsyncMutex;
  
  #[derive(Debug, Clone, Serialize, Deserialize)]
-@@ -263,9 +264,16 @@ impl CamoufoxManager {
-     );
- 
-     // Spawn the browser process
+@@ -275,9 +276,15 @@ impl CamoufoxManager {
+     // sees only an opaque "Secure Connection Failed" page — capture stderr
+     // to a per-launch file so diagnostics survive without a TTY.
+     let stderr_log_path = std::env::temp_dir().join(format!("camoufox-stderr-{}.log", profile.id));
 -    let mut command = TokioCommand::new(&executable_path);
 +    #[cfg(target_os = "linux")]
 +    let mut command = create_linux_tokio_command(&executable_path, &args)?;
@@ -57,18 +57,17 @@ index 2d2229fca3a6c7b1b743d7dca08b38305edc5c06..ab3786f0b6098fbe6bb036d1cd4a30df
 +      command.args(&args);
 +      command
 +    };
-+
      command
 -      .args(&args)
        .stdin(Stdio::null())
-       .stdout(Stdio::null())
-       .stderr(Stdio::null());
+       .stdout(Stdio::null());
+ 
 diff --git a/src-tauri/src/extraction.rs b/src-tauri/src/extraction.rs
-index 349b60d11da7c5ff3f8ab007d4b423eb409ca9d5..d3863694f6ac32397c9c6eb85b30be315736b124 100644
+index cb4b5bb1db7f0107ba41519b4408b9903c6220b0..d0b17d156fa5f6adf88d55f4c526db2ac902fc56 100644
 --- a/src-tauri/src/extraction.rs
 +++ b/src-tauri/src/extraction.rs
-@@ -221,6 +221,11 @@ impl Extractor {
-             .await;
+@@ -259,6 +259,11 @@ impl Extractor {
+           }
          }
  
 +        #[cfg(target_os = "linux")]
