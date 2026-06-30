@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/browser_runner.rs b/src-tauri/src/browser_runner.rs
-index bc67069425ae3b5a02c8c01da8784439a03dbe1c..e8fe9b1c8d30952d23b5178311e9a5c8002f1494 100644
+index cbe09967c8cfdf46db3f54cf4ca4c2ed50d4f0b9..1b890223bb8e4d4f2a08b7dce12b9f41bd11e722 100644
 --- a/src-tauri/src/browser_runner.rs
 +++ b/src-tauri/src/browser_runner.rs
-@@ -863,6 +863,21 @@ impl BrowserRunner {
+@@ -866,6 +866,21 @@ impl BrowserRunner {
  
            // Launch Camoufox with -profile and -new-tab to open URL in existing instance
            // This works because we no longer use -no-remote flag
@@ -25,7 +25,7 @@ index bc67069425ae3b5a02c8c01da8784439a03dbe1c..e8fe9b1c8d30952d23b5178311e9a5c8
              .arg("-profile")
              .arg(&*profile_path_str)
 diff --git a/src-tauri/src/camoufox_manager.rs b/src-tauri/src/camoufox_manager.rs
-index f8c27b1388d843f52494189cdceb5ece882e7530..d126627426d6b9a2f3177596f48a6bb9d7060888 100644
+index 6b388a318c339f9d0b97ab09e157aaddc51401b4..314fc3ede9e0575d6065a74d314d8ee735e6bcd3 100644
 --- a/src-tauri/src/camoufox_manager.rs
 +++ b/src-tauri/src/camoufox_manager.rs
 @@ -1,5 +1,7 @@
@@ -44,7 +44,7 @@ index f8c27b1388d843f52494189cdceb5ece882e7530..d126627426d6b9a2f3177596f48a6bb9
  use tokio::sync::Mutex as AsyncMutex;
  
  #[derive(Debug, Clone, Serialize, Deserialize)]
-@@ -275,9 +276,15 @@ impl CamoufoxManager {
+@@ -280,9 +281,15 @@ impl CamoufoxManager {
      // sees only an opaque "Secure Connection Failed" page — capture stderr
      // to a per-launch file so diagnostics survive without a TTY.
      let stderr_log_path = std::env::temp_dir().join(format!("camoufox-stderr-{}.log", profile.id));
@@ -79,10 +79,10 @@ index cb4b5bb1db7f0107ba41519b4408b9903c6220b0..d0b17d156fa5f6adf88d55f4c526db2a
            "Successfully extracted {} {} to: {}",
            browser_type.as_str(),
 diff --git a/src-tauri/src/platform_browser.rs b/src-tauri/src/platform_browser.rs
-index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5de14f330 100644
+index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d8f56a419 100644
 --- a/src-tauri/src/platform_browser.rs
 +++ b/src-tauri/src/platform_browser.rs
-@@ -531,93 +531,367 @@ pub mod windows {
+@@ -558,97 +558,367 @@ pub mod windows {
  #[allow(dead_code)]
  pub mod linux {
    use super::*;
@@ -311,7 +311,7 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +    let mut push_path = |path: String| {
 +      if !path.is_empty() && seen_paths.insert(path.clone()) {
 +        library_path.push(path);
-+      }
+       }
 +    };
 +
 +    let lib_dirs = [
@@ -324,7 +324,7 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +    for lib_dir in &lib_dirs {
 +      if lib_dir.exists() {
 +        push_path(lib_dir.to_string_lossy().to_string());
-       }
++      }
 +    }
  
 -      // For Firefox specifically, add common system library paths that might be needed
@@ -362,13 +362,21 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
          }
        }
 +    }
-+
+ 
+-      // Preserve existing LD_LIBRARY_PATH
+-      if let Ok(existing_path) = std::env::var("LD_LIBRARY_PATH") {
+-        ld_library_path.push(existing_path);
+-      }
 +    (!library_path.is_empty()).then(|| library_path.join(":"))
 +  }
 +
 +  fn collect_common_linux_env(library_path: Option<&str>) -> Vec<LinuxEnvAction> {
 +    let mut actions = Vec::new();
-+
+ 
+-      // Set the combined LD_LIBRARY_PATH
+-      if !ld_library_path.is_empty() {
+-        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
+-        log::info!("Set LD_LIBRARY_PATH to: {}", ld_library_path.join(":"));
 +    if let Some(library_path) = library_path {
 +      actions.push(LinuxEnvAction::Set(
 +        "LD_LIBRARY_PATH",
@@ -376,10 +384,7 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +      ));
 +      log::info!("Set LD_LIBRARY_PATH to: {library_path}");
 +    }
- 
--      // Preserve existing LD_LIBRARY_PATH
--      if let Ok(existing_path) = std::env::var("LD_LIBRARY_PATH") {
--        ld_library_path.push(existing_path);
++
 +    for var in [
 +      "NIX_LD",
 +      "NIX_LD_LIBRARY_PATH",
@@ -395,25 +400,30 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +      if let Ok(value) = std::env::var(var) {
 +        actions.push(LinuxEnvAction::Set(var, value));
        }
-+    }
-+
-+    if let Ok(display) = std::env::var("DISPLAY") {
+     }
+ 
+-    // Propagate DISPLAY only when this session actually has an X11 display.
+-    // Forcing DISPLAY=:0 breaks Wayland-only sessions (there is no X server on
+-    // :0, so any X11 client launched with it set will fail to connect). When
+-    // DISPLAY is set the child already inherits it from our environment, so
+-    // setting it explicitly here is purely defensive; when it's unset we leave
+-    // it unset and let the browser use Wayland.
+     if let Ok(display) = std::env::var("DISPLAY") {
+-      cmd.env("DISPLAY", display);
 +      actions.push(LinuxEnvAction::Set("DISPLAY", display));
 +    } else {
 +      actions.push(LinuxEnvAction::Remove("DISPLAY"));
-+    }
-+
-+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+     }
+ 
+-    // Set MOZ_ENABLE_WAYLAND for better Wayland support
+     if std::env::var("WAYLAND_DISPLAY").is_ok() {
+-      cmd.env("MOZ_ENABLE_WAYLAND", "1");
 +      actions.push(LinuxEnvAction::Set("MOZ_ENABLE_WAYLAND", "1".to_string()));
-+    }
-+
+     }
+ 
 +    actions
 +  }
- 
--      // Set the combined LD_LIBRARY_PATH
--      if !ld_library_path.is_empty() {
--        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
--        log::info!("Set LD_LIBRARY_PATH to: {}", ld_library_path.join(":"));
++
 +  pub(crate) fn create_linux_command(
 +    executable_path: &Path,
 +    args: &[String],
@@ -437,13 +447,9 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +        LinuxEnvAction::Remove(key) => {
 +          cmd.env_remove(key);
 +        }
-       }
-     }
- 
--    // Additional Linux-specific environment variables for better compatibility
--    cmd.env(
--      "DISPLAY",
--      std::env::var("DISPLAY").unwrap_or(":0".to_string()),
++      }
++    }
++
 +    Ok(cmd)
 +  }
 +
@@ -456,11 +462,8 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +    log::info!(
 +      "Launching {} directly after Linux runtime preparation",
 +      executable_path.display()
-     );
- 
--    // Set MOZ_ENABLE_WAYLAND for better Wayland support
--    if std::env::var("WAYLAND_DISPLAY").is_ok() {
--      cmd.env("MOZ_ENABLE_WAYLAND", "1");
++    );
++
 +    let mut cmd = TokioCommand::new(executable_path);
 +    cmd.args(args);
 +
@@ -497,8 +500,8 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +    // Check if we can read the executable to detect architecture issues early
 +    if let Err(e) = std::fs::File::open(executable_path) {
 +      return Err(format!("Cannot access browser executable: {}", e).into());
-     }
- 
++    }
++
 +    // Ensure the executable has proper permissions
 +    if let Err(e) = std::fs::metadata(executable_path) {
 +      return Err(format!("Cannot get executable metadata: {}", e).into());
@@ -506,10 +509,10 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
 +
 +    let mut cmd = create_linux_command(executable_path, args)?;
 +
-     // Disable GPU acceleration if running in headless environments
-     if std::env::var("DISPLAY").is_err() || std::env::var("WAYLAND_DISPLAY").is_err() {
-       log::info!("No display detected, browser may fail to start");
-@@ -666,14 +940,13 @@ pub mod linux {
+     // Warn only when running truly headless — i.e. NEITHER X11 nor Wayland is
+     // available. Using OR here would fire on every normal Wayland-only session
+     // (DISPLAY unset) or X11-only session (WAYLAND_DISPLAY unset).
+@@ -699,14 +969,13 @@ pub mod linux {
        .map_err(|e| format!("Failed to get executable path: {}", e))?;
  
      let profile_data_path = profile.get_profile_data_path(profiles_dir);
@@ -531,7 +534,7 @@ index cd75da207e72a4b4cae3e029ae40464b96867ceb..f1ae8d0ad7cbe06702e005c5077ff5c5
  
      if !output.status.success() {
        return Err(
-@@ -701,12 +974,11 @@ pub mod linux {
+@@ -734,12 +1003,11 @@ pub mod linux {
        .map_err(|e| format!("Failed to get executable path: {}", e))?;
  
      let profile_data_path = profile.get_profile_data_path(profiles_dir);

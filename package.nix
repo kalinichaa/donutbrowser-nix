@@ -65,14 +65,15 @@
   pango,
   webkitgtk_4_1,
   gst_all_1,
+  libayatana-appindicator,
 }:
 
 let
   pname = "donutbrowser";
-  version = "0.24.4";
-  srcHash = "sha256-lYKBKD3uO6XoS1O0yN0VdhzWagu8ejukvx/L+2Xa4a8=";
-  pnpmDepsHash = "sha256-oITwfGNy/ZnHQLBrBEifjOi8VfUpD2OHhcsyqX+0eQ4=";
-  cargoDepsHash = "sha256-Ur9K9KeGSHD2ODeuANyFv+z6mddbsS2WpWZZj0m0F7A=";
+  version = "0.27.1";
+  srcHash = "sha256-jyBQgJUxbkaMeOz3wq2qo3ys1r/CEwKi9hAiP+9Cui0=";
+  pnpmDepsHash = "sha256-0MK5H91qkRjAB3qbd1rNPsUhqfuOjBSg86K52YoymaA=";
+  cargoDepsHash = "sha256-URYRJCCS1Pq7MTlP5ZiZxEI9m5KvdLItWCKsMyt27A0=";
   playwrightDriverVersion = "1.57.0";
   playwrightDriverHash = "sha256-Z/l4EEYEIpKZsIyK5BufxJsgtdbX3WDCNIoj8qvJlJ8=";
   playwrightDriverReleaseSegment =
@@ -398,6 +399,7 @@ EOF
     zlib
     (lib.getLib systemd)
     stdenv.cc.cc.lib
+    libayatana-appindicator
   ];
 
   runtimeLibPath = lib.makeLibraryPath runtimeLibs;
@@ -481,6 +483,7 @@ stdenv.mkDerivation {
     gmp
     zlib
     (lib.getLib systemd)
+    libayatana-appindicator
   ];
 
   prePatch = ''
@@ -513,11 +516,10 @@ EOF
     fi
 
     export DONUT_SIDECAR_BUILD=1
-    cargo build --manifest-path src-tauri/Cargo.toml --release --bin donut-proxy --bin donut-daemon
+    cargo build --manifest-path src-tauri/Cargo.toml --release --bin donut-proxy
     unset DONUT_SIDECAR_BUILD
 
     install -Dm755 src-tauri/target/release/donut-proxy "src-tauri/binaries/donut-proxy-$target"
-    install -Dm755 src-tauri/target/release/donut-daemon "src-tauri/binaries/donut-daemon-$target"
 
     pnpm exec next build
 
