@@ -11,6 +11,7 @@ Use Nix-native commands from the repository root:
 - `nix flake check` validates the flake outputs for the current system.
 - `./scripts/update-version.sh --check` checks whether a newer upstream release exists.
 - `./scripts/update-version.sh --version 0.19.0` pins to a specific upstream release.
+- `./scripts/refresh-patches.sh --version 0.19.0` refreshes carried patches against an upstream release (auto-clones upstream if no local checkout).
 
 ## Coding Style & Naming Conventions
 Match existing file style. Nix uses two-space indentation and explicit semicolons. Bash scripts keep `#!/usr/bin/env bash`, `set -euo pipefail`, `snake_case` function names, and `readonly` constants for shared values. Keep packaging changes narrow and make updater logic easy to review.
@@ -30,7 +31,7 @@ Follow the existing automated update style:
 
 - `chore: update donutbrowser to version 0.19.0`
 
-For manual changes, use `fix:` or `chore:` with an imperative summary. If you open a PR manually, state what changed, why, and how it was validated. The hourly updater in this repo pushes version bumps directly to `main`.
+For manual changes, use `fix:` or `chore:` with an imperative summary. If you open a PR manually, state what changed, why, and how it was validated. The hourly updater pushes clean version bumps directly to `main`; when carried patches need refreshing it opens a reviewed PR instead, and falls back to a tracking issue when manual intervention is required.
 
 ## Security & Configuration Tips
 Do not commit secrets. `CACHIX_AUTH_TOKEN` belongs in GitHub Actions secrets only. The `aarch64-linux` build job assumes a native ARM builder or self-hosted ARM64 runner is available before enabling full multi-arch cache publication.

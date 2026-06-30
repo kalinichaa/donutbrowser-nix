@@ -279,7 +279,7 @@ Check whether a newer release exists:
 ./scripts/update-version.sh --check
 ```
 
-Refresh carried packaging patches against a specific upstream release using your local `~/dev/donutbrowser` checkout:
+Refresh carried packaging patches against a specific upstream release. This uses your local `~/dev/donutbrowser` checkout if present, otherwise it clones upstream automatically:
 
 ```bash
 ./scripts/refresh-patches.sh --version 0.20.4
