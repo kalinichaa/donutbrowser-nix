@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -108,6 +110,92 @@ jobs:
           fi
           if [ -n "${{ steps.check.outputs.refresh_command }}" ]; then
             echo "Refresh command: ${{ steps.check.outputs.refresh_command }}"
+          fi
+
+      # --- Resilience (Option C): when an update is blocked, never fail
+      # silently. For a recoverable "patches" block, auto-refresh the carried
+      # patches and re-verify the full build; on success open a PR for review
+      # (never push straight to main), and on any failure open/update a single
+      # tracking issue so the stall is always visible.
+      - name: Setup Cachix (auto-refresh)
+        if: steps.check.outputs.update_blocked == 'true' && steps.check.outputs.blocked_reason == 'patches'
+        uses: cachix/cachix-action@v17
+        with:
+          name: hassiyyt
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Recover from blocked update
+        if: steps.check.outputs.update_blocked == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BLOCKED_REASON: ${{ steps.check.outputs.blocked_reason }}
+          BLOCKED_VERSION: ${{ steps.check.outputs.blocked_version }}
+          BLOCKED_PATCHES: ${{ steps.check.outputs.blocked_patches }}
+          BLOCKED_DETAILS: ${{ steps.check.outputs.blocked_details }}
+        run: |
+          set -uo pipefail
+
+          version="$BLOCKED_VERSION"
+          branch="auto-update/v${version}"
+          issue_title="Automated update to v${version} is blocked"
+
+          # Idempotent issue helper: reuse an open issue with the same title.
+          open_or_update_issue() {
+            local body="$1"
+            local existing
+            existing=$(gh issue list --state open --search "in:title ${issue_title}" \
+              --json number,title --jq ".[] | select(.title == \"${issue_title}\") | .number" | head -1)
+            if [ -n "$existing" ]; then
+              echo "Updating existing issue #${existing}"
+              gh issue comment "$existing" --body "$body"
+            else
+              echo "Opening new tracking issue"
+              gh issue create --title "$issue_title" --body "$body" --label "automated-update" \
+                || gh issue create --title "$issue_title" --body "$body"
+            fi
+          }
+
+          # Non-patch blocks (build/playwright-driver/source-layout) need manual
+          # package.nix work a patch refresh cannot produce. Surface and stop.
+          if [ "$BLOCKED_REASON" != "patches" ]; then
+            open_or_update_issue "$(printf 'The hourly updater could not advance to **v%s**.\n\n- Reason: `%s`\n- Details: %s\n\nThis needs a manual change (likely to `package.nix`) before the update can proceed.\n\n_Filed automatically by the update workflow._' "$version" "$BLOCKED_REASON" "${BLOCKED_DETAILS:-n/a}")"
+            echo "Opened tracking issue for non-patch block '$BLOCKED_REASON'."
+            exit 0
+          fi
+
+          echo "Attempting automatic patch refresh against v${version}..."
+          if ! ./scripts/refresh-patches.sh --version "$version"; then
+            open_or_update_issue "$(printf 'The hourly updater could not auto-refresh carried patches for **v%s**.\n\n- Blocking patches: `%s`\n\nThese hunks need manual resolution against upstream v%s, then run:\n\n```\n./scripts/refresh-patches.sh --version %s\n./scripts/update-version.sh --version %s\n```\n\n_Filed automatically by the update workflow._' "$version" "${BLOCKED_PATCHES:-unknown}" "$version" "$version" "$version")"
+            echo "Patch refresh failed; opened tracking issue."
+            exit 0
+          fi
+
+          echo "Patches refreshed. Re-running updater (bump + full build verify)..."
+          if ! ./scripts/update-version.sh --version "$version"; then
+            open_or_update_issue "$(printf 'Carried patches were auto-refreshed for **v%s**, but the subsequent `update-version.sh` (bump + full build) failed.\n\nThis usually means upstream changed packaging in a way that needs a manual `package.nix` edit (e.g. a removed/added sidecar binary or a new build dependency).\n\nThe refreshed patches are ready; finish locally with:\n\n```\n./scripts/update-version.sh --version %s\n```\n\n_Filed automatically by the update workflow._' "$version" "$version")"
+            echo "update-version.sh failed after refresh; opened tracking issue."
+            exit 0
+          fi
+
+          echo "Build verified. Pushing to Cachix and opening a PR for review..."
+          out_paths="$(nix build .#donutbrowser --json --print-build-logs | jq -r '.[].outputs.out')"
+          printf '%s\n' "$out_paths" | cachix push hassiyyt || echo "Cachix push failed (non-fatal); continuing to PR."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$branch"
+          git add package.nix patches flake.lock 2>/dev/null || git add package.nix patches
+          git commit -m "chore: update donutbrowser to version ${version} (auto-refreshed patches)"
+          git push --force origin "HEAD:${branch}"
+
+          pr_body="$(printf 'Automated update to **v%s** with auto-refreshed carried patches.\n\nThe hourly updater was blocked because carried patches no longer applied; `refresh-patches.sh` reconciled them and the full `nix build .#donutbrowser` passed in CI.\n\n**Please review the refreshed patch hunks** before merging — a 3-way merge can apply cleanly yet shift intent.\n\n_Opened automatically by the update workflow._' "$version")"
+          if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --base main --head "$branch" \
+              --title "chore: update donutbrowser to version ${version}" \
+              --body "$pr_body"
+          else
+            echo "PR for ${branch} already open; branch updated by force-push."
           fi
 
       - name: Update package

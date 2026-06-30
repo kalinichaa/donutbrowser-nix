@@ -6,10 +6,31 @@ readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly NC='\033[0m'
 readonly DEFAULT_SOURCE_REPO='/home/h/dev/donutbrowser'
+readonly UPSTREAM_GIT_URL='https://github.com/zhom/donutbrowser.git'
+
+# Cleanup state, kept at script scope so the EXIT trap never references
+# unset locals (a `set -u` script aborts with "unbound variable" if the trap
+# fires before main()'s locals are in scope).
+CLEANUP_SOURCE_REPO=""
+CLEANUP_WORKTREE_DIR=""
+CLEANUP_CLONE_DIR=""
+RESOLVED_SOURCE_REPO=""
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+
+cleanup() {
+  if [ -n "$CLEANUP_SOURCE_REPO" ] && [ -n "$CLEANUP_WORKTREE_DIR" ]; then
+    git -C "$CLEANUP_SOURCE_REPO" worktree remove --force "$CLEANUP_WORKTREE_DIR" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$CLEANUP_WORKTREE_DIR" ]; then
+    rm -rf "$CLEANUP_WORKTREE_DIR"
+  fi
+  if [ -n "$CLEANUP_CLONE_DIR" ]; then
+    rm -rf "$CLEANUP_CLONE_DIR"
+  fi
+}
 
 ensure_in_repository_root() {
   if [ ! -f "flake.nix" ] || [ ! -f "package.nix" ]; then
@@ -81,10 +102,28 @@ create_release_worktree() {
   git -C "$source_repo" worktree add --detach "$worktree_dir" "v${version}" >/dev/null
 }
 
-remove_release_worktree() {
+resolve_source_repo() {
+  # Sets RESOLVED_SOURCE_REPO to a usable git repo path. Uses the
+  # provided/default local mirror when it exists; otherwise clones upstream
+  # into a temp dir (CI has no local mirror). Must NOT run in a command
+  # substitution: it records the temp clone in CLEANUP_CLONE_DIR for the EXIT
+  # trap, and a subshell assignment would be lost (leaking the clone).
   local source_repo="$1"
-  local worktree_dir="$2"
-  git -C "$source_repo" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
+
+  if [ -d "$source_repo/.git" ]; then
+    RESOLVED_SOURCE_REPO="$source_repo"
+    return 0
+  fi
+
+  log_warn "Source repo '$source_repo' not found locally; cloning ${UPSTREAM_GIT_URL}"
+  local clone_dir
+  clone_dir=$(mktemp -d)
+  CLEANUP_CLONE_DIR="$clone_dir"
+  if ! git clone --quiet "$UPSTREAM_GIT_URL" "$clone_dir"; then
+    log_error "Failed to clone ${UPSTREAM_GIT_URL}"
+    exit 1
+  fi
+  RESOLVED_SOURCE_REPO="$clone_dir"
 }
 
 refresh_one_patch() {
@@ -97,6 +136,10 @@ refresh_one_patch() {
   if ! git -C "$worktree_dir" apply --3way --index "$repo_root/$patch_path" >"$patch_tmp" 2>&1; then
     cat "$patch_tmp"
     rm -f "$patch_tmp"
+    # Drop the conflicted/partial apply so the next patch is evaluated against
+    # the last successfully-refreshed state instead of a dirty index.
+    git -C "$worktree_dir" reset --hard --quiet HEAD
+    git -C "$worktree_dir" clean -fdq
     return 1
   fi
   rm -f "$patch_tmp"
@@ -154,10 +197,10 @@ main() {
     esac
   done
 
-  if [ ! -d "$source_repo/.git" ]; then
-    log_error "Source repo '$source_repo' is not a git repository"
-    exit 1
-  fi
+  trap cleanup EXIT
+
+  resolve_source_repo "$source_repo"
+  source_repo="$RESOLVED_SOURCE_REPO"
 
   local repo_root
   repo_root=$(pwd -P)
@@ -165,7 +208,8 @@ main() {
 
   local worktree_dir
   worktree_dir=$(mktemp -d)
-  trap 'remove_release_worktree "$source_repo" "$worktree_dir"; rm -rf "$worktree_dir"' EXIT
+  CLEANUP_SOURCE_REPO="$source_repo"
+  CLEANUP_WORKTREE_DIR="$worktree_dir"
 
   log_info "Refreshing carried patches against upstream release v${target_version} using $source_repo"
   create_release_worktree "$source_repo" "$target_version" "$worktree_dir"
@@ -181,8 +225,10 @@ main() {
     if refresh_one_patch "$repo_root" "$worktree_dir" "$patch_path"; then
       refreshed_patches+=("$patch_path")
     else
+      # Best-effort: keep going so every failing patch is reported in one run
+      # instead of one-per-invocation. Patches that don't conflict still get
+      # refreshed on top of the last good state.
       failed_patches+=("$patch_path")
-      break
     fi
   done < <(get_packaging_patch_paths)
 
@@ -191,7 +237,8 @@ main() {
   fi
 
   if [ "${#failed_patches[@]}" -gt 0 ]; then
-    log_warn "Patch refresh stopped after failure. Remaining manual review required for: ${failed_patches[*]}"
+    log_warn "Patch refresh could not auto-apply: ${failed_patches[*]}"
+    log_warn "These need manual resolution against upstream v${target_version}."
     exit 1
   fi
 
