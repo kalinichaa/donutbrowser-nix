@@ -1,5 +1,5 @@
 diff --git a/src-tauri/build.rs b/src-tauri/build.rs
-index a53ddb6940cc0f044b75d0497cae0d4895287a02..e09e092db93370890f2641134754322ad0023e87 100644
+index 69d1d0f79e5036547c79f5fc388f20a2c2318846..bcf0040f1a16d3dbea96ff7c65c7bb72ed222682 100644
 --- a/src-tauri/build.rs
 +++ b/src-tauri/build.rs
 @@ -1,12 +1,17 @@
@@ -14,7 +14,7 @@ index a53ddb6940cc0f044b75d0497cae0d4895287a02..e09e092db93370890f2641134754322a
 +    ensure_dist_folder_exists();
 +  }
  
-   // Generate tray icon PNGs from SVG (macOS template icon format)
+   // Generate tray icon PNG files from SVG (macOS template icon format)
 -  generate_tray_icons();
 +  if !sidecar_only {
 +    generate_tray_icons();

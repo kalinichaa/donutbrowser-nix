@@ -1,8 +1,8 @@
 diff --git a/src/components/settings-dialog.tsx b/src/components/settings-dialog.tsx
-index 98bc4cae82177cf9ca083b4838e796290afc2868..e76abac664e68342b339b77d0c1b1af724c4986a 100644
+index 8b57226311a40f73493d5ebc81b399be50773192..a2f256211f82325b3af019010948a3b83d0dcc4c 100644
 --- a/src/components/settings-dialog.tsx
 +++ b/src/components/settings-dialog.tsx
-@@ -337,13 +337,32 @@ export function SettingsDialog({
+@@ -338,13 +338,32 @@ export function SettingsDialog({
      setIsSettingDefault(true);
      try {
        await invoke("set_as_default_browser");
