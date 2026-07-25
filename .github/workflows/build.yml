@@ -33,7 +33,6 @@ jobs:
           NIX_FIRST_BUILD_UID: 400
 
       - name: Setup Cachix
-        if: github.ref == 'refs/heads/main'
         uses: cachix/cachix-action@v17
         with:
           name: hassiyyt
