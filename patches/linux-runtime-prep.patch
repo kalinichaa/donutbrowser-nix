@@ -1,72 +1,8 @@
-diff --git a/src-tauri/src/browser_runner.rs b/src-tauri/src/browser_runner.rs
-index cbe09967c8cfdf46db3f54cf4ca4c2ed50d4f0b9..1b890223bb8e4d4f2a08b7dce12b9f41bd11e722 100644
---- a/src-tauri/src/browser_runner.rs
-+++ b/src-tauri/src/browser_runner.rs
-@@ -866,6 +866,21 @@ impl BrowserRunner {
- 
-           // Launch Camoufox with -profile and -new-tab to open URL in existing instance
-           // This works because we no longer use -no-remote flag
-+          #[cfg(target_os = "linux")]
-+          let output = {
-+            let args = vec![
-+              "-profile".to_string(),
-+              profile_path_str.to_string(),
-+              "-new-tab".to_string(),
-+              url.to_string(),
-+            ];
-+            crate::platform_browser::linux::create_linux_command(&executable_path, &args)
-+              .map_err(|e| format!("Failed to prepare Camoufox runtime: {e}"))?
-+              .output()
-+              .map_err(|e| format!("Failed to execute Camoufox: {e}"))?
-+          };
-+
-+          #[cfg(not(target_os = "linux"))]
-           let output = std::process::Command::new(&executable_path)
-             .arg("-profile")
-             .arg(&*profile_path_str)
-diff --git a/src-tauri/src/camoufox_manager.rs b/src-tauri/src/camoufox_manager.rs
-index 6b388a318c339f9d0b97ab09e157aaddc51401b4..314fc3ede9e0575d6065a74d314d8ee735e6bcd3 100644
---- a/src-tauri/src/camoufox_manager.rs
-+++ b/src-tauri/src/camoufox_manager.rs
-@@ -1,5 +1,7 @@
- use crate::browser_runner::BrowserRunner;
- use crate::camoufox::{CamoufoxConfigBuilder, GeoIPOption, ScreenConstraints};
-+#[cfg(target_os = "linux")]
-+use crate::platform_browser::linux::create_linux_tokio_command;
- use crate::profile::BrowserProfile;
- use serde::{Deserialize, Serialize};
- use std::collections::HashMap;
-@@ -7,7 +9,6 @@ use std::path::PathBuf;
- use std::process::Stdio;
- use std::sync::Arc;
- use tauri::AppHandle;
--use tokio::process::Command as TokioCommand;
- use tokio::sync::Mutex as AsyncMutex;
- 
- #[derive(Debug, Clone, Serialize, Deserialize)]
-@@ -280,9 +281,15 @@ impl CamoufoxManager {
-     // sees only an opaque "Secure Connection Failed" page — capture stderr
-     // to a per-launch file so diagnostics survive without a TTY.
-     let stderr_log_path = std::env::temp_dir().join(format!("camoufox-stderr-{}.log", profile.id));
--    let mut command = TokioCommand::new(&executable_path);
-+    #[cfg(target_os = "linux")]
-+    let mut command = create_linux_tokio_command(&executable_path, &args)?;
-+    #[cfg(not(target_os = "linux"))]
-+    let mut command = {
-+      let mut command = tokio::process::Command::new(&executable_path);
-+      command.args(&args);
-+      command
-+    };
-     command
--      .args(&args)
-       .stdin(Stdio::null())
-       .stdout(Stdio::null());
- 
 diff --git a/src-tauri/src/extraction.rs b/src-tauri/src/extraction.rs
-index cb4b5bb1db7f0107ba41519b4408b9903c6220b0..d0b17d156fa5f6adf88d55f4c526db2ac902fc56 100644
+index f21a11ce7c9eb7455c46fd2888ccfec810f1d195..cbc4c799767a42d6a6058cd401a74ddc1406fce0 100644
 --- a/src-tauri/src/extraction.rs
 +++ b/src-tauri/src/extraction.rs
-@@ -259,6 +259,11 @@ impl Extractor {
+@@ -394,6 +394,11 @@ impl Extractor {
            }
          }
  
@@ -79,10 +15,10 @@ index cb4b5bb1db7f0107ba41519b4408b9903c6220b0..d0b17d156fa5f6adf88d55f4c526db2a
            "Successfully extracted {} {} to: {}",
            browser_type.as_str(),
 diff --git a/src-tauri/src/platform_browser.rs b/src-tauri/src/platform_browser.rs
-index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d8f56a419 100644
+index 3ee57bbd8ff9bbe9cf819f001b85d42541ef64c9..bc01165d35528d7e8854a0d9c2e31c24559dab5a 100644
 --- a/src-tauri/src/platform_browser.rs
 +++ b/src-tauri/src/platform_browser.rs
-@@ -558,97 +558,367 @@ pub mod windows {
+@@ -433,96 +433,337 @@ pub mod windows {
  #[allow(dead_code)]
  pub mod linux {
    use super::*;
@@ -90,7 +26,6 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
 +  use std::fs::File;
 +  use std::io::Read;
 +  use std::path::PathBuf;
-+  use tokio::process::Command as TokioCommand;
 +
 +  enum LinuxEnvAction {
 +    Set(&'static str, String),
@@ -284,12 +219,10 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
 +      patched_files
 +    );
  
--    // For Firefox-based browsers, ensure library path includes the installation directory
+-    // Ensure the library path includes the installation directory
 -    if let Some(install_dir) = executable_path.parent() {
 -      let mut ld_library_path = Vec::new();
-+    Ok(())
-+  }
- 
+-
 -      // Add multiple potential library directories
 -      let lib_dirs = [
 -        install_dir.join("lib"),
@@ -297,21 +230,25 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
 -        install_dir.join("../../lib"), // Grandparent directory lib
 -        install_dir.to_path_buf(),     // Installation directory itself
 -      ];
-+  fn collect_linux_library_path(executable_path: &Path) -> Option<String> {
-+    let Some(install_dir) = executable_path.parent() else {
-+      return None;
-+    };
- 
+-
 -      for lib_dir in &lib_dirs {
 -        if lib_dir.exists() {
 -          ld_library_path.push(lib_dir.to_string_lossy().to_string());
 -        }
++    Ok(())
++  }
++
++  fn collect_linux_library_path(executable_path: &Path) -> Option<String> {
++    let Some(install_dir) = executable_path.parent() else {
++      return None;
++    };
++
 +    let mut library_path = Vec::new();
 +    let mut seen_paths = HashSet::new();
 +    let mut push_path = |path: String| {
 +      if !path.is_empty() && seen_paths.insert(path.clone()) {
 +        library_path.push(path);
-       }
++      }
 +    };
 +
 +    let lib_dirs = [
@@ -324,59 +261,57 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
 +    for lib_dir in &lib_dirs {
 +      if lib_dir.exists() {
 +        push_path(lib_dir.to_string_lossy().to_string());
-+      }
+       }
 +    }
  
--      // For Firefox specifically, add common system library paths that might be needed
--      let firefox_lib_paths = [
--        "/usr/lib/firefox",
+-      // Add common system library paths that might be needed
+-      let system_lib_paths = [
 -        "/usr/lib/x86_64-linux-gnu",
 -        "/usr/lib/aarch64-linux-gnu",
 -        "/lib/x86_64-linux-gnu",
 -        "/lib/aarch64-linux-gnu",
 -      ];
-+    let firefox_lib_paths = [
-+      "/usr/lib/firefox",
++    let system_lib_paths = [
 +      "/usr/lib/x86_64-linux-gnu",
 +      "/usr/lib/aarch64-linux-gnu",
 +      "/lib/x86_64-linux-gnu",
 +      "/lib/aarch64-linux-gnu",
 +    ];
-+
-+    for lib_path in &firefox_lib_paths {
-+      if Path::new(lib_path).exists() {
-+        push_path((*lib_path).to_string());
-+      }
-+    }
  
--      for lib_path in &firefox_lib_paths {
+-      for lib_path in &system_lib_paths {
 -        let path = std::path::Path::new(lib_path);
 -        if path.exists() {
 -          ld_library_path.push(lib_path.to_string());
-+    for env_var in ["NIX_LD_LIBRARY_PATH", "LD_LIBRARY_PATH"] {
-+      if let Ok(existing_path) = std::env::var(env_var) {
-+        if !existing_path.is_empty() {
-+          for path in existing_path.split(':') {
-+            push_path(path.to_string());
-+          }
-         }
+-        }
++    for lib_path in &system_lib_paths {
++      if Path::new(lib_path).exists() {
++        push_path((*lib_path).to_string());
        }
 +    }
  
 -      // Preserve existing LD_LIBRARY_PATH
 -      if let Ok(existing_path) = std::env::var("LD_LIBRARY_PATH") {
 -        ld_library_path.push(existing_path);
--      }
++    for env_var in ["NIX_LD_LIBRARY_PATH", "LD_LIBRARY_PATH"] {
++      if let Ok(existing_path) = std::env::var(env_var) {
++        if !existing_path.is_empty() {
++          for path in existing_path.split(':') {
++            push_path(path.to_string());
++          }
++        }
+       }
++    }
++
 +    (!library_path.is_empty()).then(|| library_path.join(":"))
 +  }
-+
-+  fn collect_common_linux_env(library_path: Option<&str>) -> Vec<LinuxEnvAction> {
-+    let mut actions = Vec::new();
  
 -      // Set the combined LD_LIBRARY_PATH
 -      if !ld_library_path.is_empty() {
 -        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
 -        log::info!("Set LD_LIBRARY_PATH to: {}", ld_library_path.join(":"));
++  fn collect_common_linux_env(library_path: Option<&str>) -> Vec<LinuxEnvAction> {
++    let mut actions = Vec::new();
++
 +    if let Some(library_path) = library_path {
 +      actions.push(LinuxEnvAction::Set(
 +        "LD_LIBRARY_PATH",
@@ -419,8 +354,8 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
      if std::env::var("WAYLAND_DISPLAY").is_ok() {
 -      cmd.env("MOZ_ENABLE_WAYLAND", "1");
 +      actions.push(LinuxEnvAction::Set("MOZ_ENABLE_WAYLAND", "1".to_string()));
-     }
- 
++    }
++
 +    actions
 +  }
 +
@@ -448,39 +383,11 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
 +          cmd.env_remove(key);
 +        }
 +      }
-+    }
-+
+     }
+ 
 +    Ok(cmd)
 +  }
 +
-+  pub(crate) fn create_linux_tokio_command(
-+    executable_path: &Path,
-+    args: &[String],
-+  ) -> Result<TokioCommand, Box<dyn std::error::Error + Send + Sync>> {
-+    prepare_linux_browser_runtime(executable_path)?;
-+
-+    log::info!(
-+      "Launching {} directly after Linux runtime preparation",
-+      executable_path.display()
-+    );
-+
-+    let mut cmd = TokioCommand::new(executable_path);
-+    cmd.args(args);
-+
-+    let library_path = collect_linux_library_path(executable_path);
-+    for action in collect_common_linux_env(library_path.as_deref()) {
-+      match action {
-+        LinuxEnvAction::Set(key, value) => {
-+          cmd.env(key, value);
-+        }
-+        LinuxEnvAction::Remove(key) => {
-+          cmd.env_remove(key);
-+        }
-+      }
-+    }
-+
-+    Ok(cmd)
-+  }
 +
 +  pub async fn launch_browser_process(
 +    executable_path: &std::path::Path,
@@ -512,43 +419,3 @@ index 14849b5903f021458af355412365715e6560a1f0..0196b96a1c5f634d41f851ddafe46b4d
      // Warn only when running truly headless — i.e. NEITHER X11 nor Wayland is
      // available. Using OR here would fire on every normal Wayland-only session
      // (DISPLAY unset) or X11-only session (WAYLAND_DISPLAY unset).
-@@ -699,14 +969,13 @@ pub mod linux {
-       .map_err(|e| format!("Failed to get executable path: {}", e))?;
- 
-     let profile_data_path = profile.get_profile_data_path(profiles_dir);
--    let output = Command::new(executable_path)
--      .args([
--        "-profile",
--        &profile_data_path.to_string_lossy(),
--        "-new-tab",
--        url,
--      ])
--      .output()?;
-+    let args = vec![
-+      "-profile".to_string(),
-+      profile_data_path.to_string_lossy().to_string(),
-+      "-new-tab".to_string(),
-+      url.to_string(),
-+    ];
-+    let output = create_linux_command(&executable_path, &args)?.output()?;
- 
-     if !output.status.success() {
-       return Err(
-@@ -734,12 +1003,11 @@ pub mod linux {
-       .map_err(|e| format!("Failed to get executable path: {}", e))?;
- 
-     let profile_data_path = profile.get_profile_data_path(profiles_dir);
--    let output = Command::new(executable_path)
--      .args([
--        &format!("--user-data-dir={}", profile_data_path.to_string_lossy()),
--        url,
--      ])
--      .output()?;
-+    let args = vec![
-+      format!("--user-data-dir={}", profile_data_path.to_string_lossy()),
-+      url.to_string(),
-+    ];
-+    let output = create_linux_command(&executable_path, &args)?.output()?;
- 
-     if !output.status.success() {
-       return Err(
