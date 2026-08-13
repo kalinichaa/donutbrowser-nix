@@ -21,7 +21,7 @@ This flake exposes:
 Run directly from GitHub:
 
 ```bash
-nix run github:HassiyYT/donutbrowser-nix#donutbrowser
+nix run github:kalinichaa/donutbrowser-nix#donutbrowser
 ```
 
 Run from a local checkout:
@@ -35,7 +35,7 @@ nix run .#donutbrowser
 Install into your current user profile from GitHub:
 
 ```bash
-nix profile install github:HassiyYT/donutbrowser-nix#donutbrowser
+nix profile install github:kalinichaa/donutbrowser-nix#donutbrowser
 ```
 
 Install from a local checkout:
@@ -56,7 +56,7 @@ Add the flake as an input in your `flake.nix`:
 
 ```nix
 {
-  inputs.donutbrowser.url = "github:HassiyYT/donutbrowser-nix";
+  inputs.donutbrowser.url = "github:kalinichaa/donutbrowser-nix";
 }
 ```
 
@@ -97,7 +97,7 @@ Add the same flake input:
 
 ```nix
 {
-  inputs.donutbrowser.url = "github:HassiyYT/donutbrowser-nix";
+  inputs.donutbrowser.url = "github:kalinichaa/donutbrowser-nix";
 }
 ```
 
@@ -139,7 +139,7 @@ You can reference this flake from another flake in any of these ways:
 From GitHub:
 
 ```nix
-inputs.donutbrowser.url = "github:HassiyYT/donutbrowser-nix";
+inputs.donutbrowser.url = "github:kalinichaa/donutbrowser-nix";
 ```
 
 From a local checkout:
