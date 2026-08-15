@@ -1,10 +1,11 @@
 diff --git a/src-tauri/build.rs b/src-tauri/build.rs
-index 69d1d0f79e5036547c79f5fc388f20a2c2318846..bcf0040f1a16d3dbea96ff7c65c7bb72ed222682 100644
+index 6f7e689b115a2a9c062f355c0ed378f6f04e8974..30dcf47203e2c3891069c68302b5607a53f294be 100644
 --- a/src-tauri/build.rs
 +++ b/src-tauri/build.rs
-@@ -1,12 +1,17 @@
- fn main() {
+@@ -2,13 +2,18 @@ fn main() {
    println!("cargo::rustc-check-cfg=cfg(mobile)");
+   let build_target = std::env::var("TARGET").expect("Cargo must provide TARGET");
+   println!("cargo:rustc-env=DONUT_BUILD_TARGET={build_target}");
 +  let sidecar_only = std::env::var_os("DONUT_SIDECAR_BUILD").is_some();
  
    // Ensure dist folder exists for tauri::generate_context!() macro
@@ -22,7 +23,7 @@ index 69d1d0f79e5036547c79f5fc388f20a2c2318846..bcf0040f1a16d3dbea96ff7c65c7bb72
  
    #[cfg(target_os = "macos")]
    {
-@@ -68,9 +73,12 @@ fn main() {
+@@ -70,9 +75,12 @@ fn main() {
        embed_windows_manifest();
        println!("cargo:rustc-link-arg-bins=/MANIFEST:NO");
      }
@@ -36,3 +37,18 @@ index 69d1d0f79e5036547c79f5fc388f20a2c2318846..bcf0040f1a16d3dbea96ff7c65c7bb72
      #[cfg(target_os = "windows")]
      embed_windows_manifest();
    }
+@@ -100,13 +108,7 @@ fn external_binaries_exist() -> bool {
+   } else {
+     format!("donut-proxy-{}", target)
+   };
+-  let xray_name = if target.contains("windows") {
+-    format!("xray-{}.exe", target)
+-  } else {
+-    format!("xray-{}", target)
+-  };
+-
+-  binaries_dir.join(&donut_proxy_name).exists() && binaries_dir.join(&xray_name).exists()
++  binaries_dir.join(&donut_proxy_name).exists()
+ }
+ 
+ fn ensure_dist_folder_exists() {

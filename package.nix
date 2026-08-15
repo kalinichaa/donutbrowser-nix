@@ -68,10 +68,10 @@
 
 let
   pname = "donutbrowser";
-  version = "0.28.2";
-  srcHash = "sha256-l27RMsdC9hvHwAzo+8Sobm4UHijLNnUL2dWzTNz8odM=";
-  pnpmDepsHash = "sha256-xhYZwFJJ9WIF0Vp7q0sSB7Ex1KHuAPlleQFDOoBcmHk=";
-  cargoDepsHash = "sha256-5ljro8Tm2ePMKma5dkIKd+zWpOiqmoaEMMvJrxkjNsQ=";
+  version = "0.29.3";
+  srcHash = "sha256-lyjwPoI8IwvAhxwnyUVQkYKEM+3xoMx5qRGvz3N8Ljk=";
+  pnpmDepsHash = "sha256-LAoNiVGTtYEEOCcdRH0av/bg1QPw0/plyF84JlN6XPk=";
+  cargoDepsHash = "sha256-m30NdUv3ExTVUti0orwZnlCSnib5FrqQp1yfPAufKIo=";
 
   src = fetchFromGitHub {
     owner = "zhom";
@@ -83,8 +83,16 @@ let
   pnpmDeps = fetchPnpmDeps {
     inherit pname version src;
     inherit pnpm;
-    fetcherVersion = 3;
+    fetcherVersion = 4;
     hash = pnpmDepsHash;
+    # Large tarballs (next, @next/swc, @biomejs/cli) can exceed pnpm's default
+    # 60s fetch timeout on slow CI links. Bump timeouts/retries so the frozen
+    # install is resilient.
+    pnpmInstallFlags = [
+      "--fetch-timeout=600000"
+      "--fetch-retries=5"
+      "--fetch-retry-mintimeout=10000"
+    ];
   };
 
   rawCargoDeps = rustPlatform.fetchCargoVendor {
@@ -236,7 +244,9 @@ stdenv.mkDerivation {
   postPatch = ''
     jq '
       .build.beforeBuildCommand = "" |
-      .bundle.targets = ["deb"]
+      .bundle.targets = ["deb"] |
+      .bundle.externalBin = ["binaries/donut-proxy"] |
+      .bundle.resources = ( .bundle.resources // {} | del(."binaries/xray-LICENSE.txt") )
     ' src-tauri/tauri.conf.json | sponge src-tauri/tauri.conf.json
 
     jq 'del(.scripts.prebuild)' package.json | sponge package.json

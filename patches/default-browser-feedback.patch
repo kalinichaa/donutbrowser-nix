@@ -1,8 +1,8 @@
 diff --git a/src/components/settings-dialog.tsx b/src/components/settings-dialog.tsx
-index 8b57226311a40f73493d5ebc81b399be50773192..a2f256211f82325b3af019010948a3b83d0dcc4c 100644
+index 60ec2c2d827f94c09a8079a53f2dad85a4c29c3f..34dbfa78bd3c8819b021b9c08a596366501f8a50 100644
 --- a/src/components/settings-dialog.tsx
 +++ b/src/components/settings-dialog.tsx
-@@ -338,13 +338,32 @@ export function SettingsDialog({
+@@ -402,13 +402,32 @@ export function SettingsDialog({
      setIsSettingDefault(true);
      try {
        await invoke("set_as_default_browser");
@@ -35,5 +35,5 @@ index 8b57226311a40f73493d5ebc81b399be50773192..a2f256211f82325b3af019010948a3b8
 -  }, [checkDefaultBrowserStatus]);
 +  }, []);
  
-   const handleClearCache = useCallback(async () => {
-     setIsClearingCache(true);
+   const handleClearTraffic = useCallback(async () => {
+     setIsClearingTraffic(true);

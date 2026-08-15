@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/downloaded_browsers_registry.rs b/src-tauri/src/downloaded_browsers_registry.rs
-index 95d632ca9b5dae98b724fcec2d683f2339b8d3b2..8c71418cf9593dc80b6e1485c25acc2fd99c39fe 100644
+index 3655fb7f2ca88456a97eceaffc3539cbeeb3793c..5440b80d113529e7880d6e3b96266feaf3f8f408 100644
 --- a/src-tauri/src/downloaded_browsers_registry.rs
 +++ b/src-tauri/src/downloaded_browsers_registry.rs
-@@ -242,6 +242,16 @@ impl DownloadedBrowsersRegistry {
+@@ -258,6 +258,16 @@ impl DownloadedBrowsersRegistry {
        running_profiles.iter().cloned().collect();
      let mut cleaned_up = Vec::new();
  
@@ -20,17 +20,17 @@ index 95d632ca9b5dae98b724fcec2d683f2339b8d3b2..8c71418cf9593dc80b6e1485c25acc2f
      let pending_updates = match self.auto_updater.get_pending_update_versions() {
        Ok(updates) => updates,
 diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
-index 4972c26be9565610fed7a4e91487718991505bde..1f6d3e5d76317a8a77f19e8a2a06e14f36537a96 100644
+index 5b96082df87e2c953f0619795af797d33c9f68fb..1f90cc31f52ec8318baa358335a9aca6e1a736e9 100644
 --- a/src-tauri/src/lib.rs
 +++ b/src-tauri/src/lib.rs
-@@ -1782,6 +1782,10 @@ pub fn run() {
-       // that might be needed for profiles being synced from the cloud
-       tauri::async_runtime::spawn(async move {
-         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(43200)); // Every 12 hours
-+        // Tokio intervals tick immediately on first call. Skip the first tick so
-+        // startup does not aggressively remove browser binaries the user just
-+        // downloaded but has not assigned to a profile yet.
-+        interval.tick().await;
- 
-         loop {
-           interval.tick().await;
+@@ -2220,6 +2220,10 @@ pub fn run_with_builder(
+         // Start periodic cleanup task for unused binaries.
+         tauri::async_runtime::spawn(async move {
+           let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(43200));
++          // Tokio intervals tick immediately on first call. Skip the first tick so
++          // startup does not aggressively remove browser binaries the user just
++          // downloaded but has not assigned to a profile yet.
++          interval.tick().await;
+           loop {
+             interval.tick().await;
+             if let Some(scheduler) = sync::get_global_scheduler() {

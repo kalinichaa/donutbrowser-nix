@@ -157,6 +157,7 @@ refresh_one_patch() {
   git -C "$worktree_dir" \
     -c user.name='patch-refresh-bot' \
     -c user.email='patch-refresh-bot@local.invalid' \
+    -c commit.gpgsign=false \
     commit -q -m "refresh $(basename "$patch_path")"
 }
 
