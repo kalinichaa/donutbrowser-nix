@@ -68,10 +68,10 @@
 
 let
   pname = "donutbrowser";
-  version = "0.30.0";
-  srcHash = "sha256-6JBFmbg3Y3QzGxONDhYveBehFK/L6BV5b8leUStPJ/M=";
-  pnpmDepsHash = "sha256-CHovE6YnVON0XCDCwFRRh1NwG+w2CZsyKSYShL2wPXs=";
-  cargoDepsHash = "sha256-y+JTuBeLKnW0eUfVClVSP3ugNuY7c/vFmAVNyuSsikA=";
+  version = "0.31.0";
+  srcHash = "sha256-MfAyOGJiUrM3dGaikhE3LLnb6mCnDKcjQ3S/v68te24=";
+  pnpmDepsHash = "sha256-WNJ4Z6gAj+VEq/sXD6xO7uXpNpguvsiGi7qno0GD3gU=";
+  cargoDepsHash = "sha256-5haC8pGMTmBl79LhfBUDcPLekHyqzQJdm+BVgqjdl0w=";
 
   src = fetchFromGitHub {
     owner = "zhom";
