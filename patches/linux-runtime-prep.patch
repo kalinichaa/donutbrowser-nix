@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/extraction.rs b/src-tauri/src/extraction.rs
-index f21a11ce7c9eb7455c46fd2888ccfec810f1d195..cbc4c799767a42d6a6058cd401a74ddc1406fce0 100644
+index 07350d0cf8a6429bdc92916418babac5bbf5b0de..eb339c03ec652e83b00bed58df005f3aef76ec02 100644
 --- a/src-tauri/src/extraction.rs
 +++ b/src-tauri/src/extraction.rs
-@@ -394,6 +394,11 @@ impl Extractor {
+@@ -396,6 +396,11 @@ impl Extractor {
            }
          }
  
@@ -15,10 +15,10 @@ index f21a11ce7c9eb7455c46fd2888ccfec810f1d195..cbc4c799767a42d6a6058cd401a74ddc
            "Successfully extracted {} {} to: {}",
            browser_type.as_str(),
 diff --git a/src-tauri/src/platform_browser.rs b/src-tauri/src/platform_browser.rs
-index 3ee57bbd8ff9bbe9cf819f001b85d42541ef64c9..bc01165d35528d7e8854a0d9c2e31c24559dab5a 100644
+index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1da6148fa 100644
 --- a/src-tauri/src/platform_browser.rs
 +++ b/src-tauri/src/platform_browser.rs
-@@ -433,96 +433,337 @@ pub mod windows {
+@@ -486,96 +486,337 @@ pub mod windows {
  #[allow(dead_code)]
  pub mod linux {
    use super::*;
@@ -301,14 +301,14 @@ index 3ee57bbd8ff9bbe9cf819f001b85d42541ef64c9..bc01165d35528d7e8854a0d9c2e31c24
 +        }
        }
 +    }
-+
-+    (!library_path.is_empty()).then(|| library_path.join(":"))
-+  }
  
 -      // Set the combined LD_LIBRARY_PATH
 -      if !ld_library_path.is_empty() {
 -        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
 -        log::info!("Set LD_LIBRARY_PATH to: {}", ld_library_path.join(":"));
++    (!library_path.is_empty()).then(|| library_path.join(":"))
++  }
++
 +  fn collect_common_linux_env(library_path: Option<&str>) -> Vec<LinuxEnvAction> {
 +    let mut actions = Vec::new();
 +
@@ -354,8 +354,8 @@ index 3ee57bbd8ff9bbe9cf819f001b85d42541ef64c9..bc01165d35528d7e8854a0d9c2e31c24
      if std::env::var("WAYLAND_DISPLAY").is_ok() {
 -      cmd.env("MOZ_ENABLE_WAYLAND", "1");
 +      actions.push(LinuxEnvAction::Set("MOZ_ENABLE_WAYLAND", "1".to_string()));
-+    }
-+
+     }
+ 
 +    actions
 +  }
 +
@@ -383,8 +383,8 @@ index 3ee57bbd8ff9bbe9cf819f001b85d42541ef64c9..bc01165d35528d7e8854a0d9c2e31c24
 +          cmd.env_remove(key);
 +        }
 +      }
-     }
- 
++    }
++
 +    Ok(cmd)
 +  }
 +

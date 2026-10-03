@@ -1,5 +1,5 @@
 diff --git a/src-tauri/build.rs b/src-tauri/build.rs
-index 3cc8c117b515021c64cbc4dab73567dbf7d5d290..1c2da32894fac3d9503b8335b30562f5ab9ccbbc 100644
+index f6b9c0b3b317f8e228c343eae0ac707770db7664..d2a8c8f5e9688fe0840c82ea9ee7ec70384c5296 100644
 --- a/src-tauri/build.rs
 +++ b/src-tauri/build.rs
 @@ -2,13 +2,18 @@ fn main() {
@@ -21,9 +21,9 @@ index 3cc8c117b515021c64cbc4dab73567dbf7d5d290..1c2da32894fac3d9503b8335b30562f5
 +    generate_tray_icons();
 +  }
  
-   #[cfg(target_os = "macos")]
-   {
-@@ -70,9 +75,12 @@ fn main() {
+   if build_target.ends_with("-apple-darwin") {
+     println!("cargo:rustc-link-lib=framework=CoreFoundation");
+@@ -75,9 +80,13 @@ fn main() {
        embed_windows_manifest();
        println!("cargo:rustc-link-arg-bins=/MANIFEST:NO");
      }
@@ -31,13 +31,14 @@ index 3cc8c117b515021c64cbc4dab73567dbf7d5d290..1c2da32894fac3d9503b8335b30562f5
 +  } else if !sidecar_only {
      println!("cargo:warning=Skipping tauri_build: external binaries not found. This is expected when building sidecar binaries.");
  
-+    #[cfg(target_os = "windows")]
-+    embed_windows_manifest();
++    if build_target.contains("windows") {
++      embed_windows_manifest();
++    }
 +  } else {
-     #[cfg(target_os = "windows")]
-     embed_windows_manifest();
-   }
-@@ -100,13 +108,7 @@ fn external_binaries_exist() -> bool {
+     if build_target.contains("windows") {
+       embed_windows_manifest();
+     }
+@@ -106,13 +115,7 @@ fn external_binaries_exist() -> bool {
    } else {
      format!("donut-proxy-{}", target)
    };

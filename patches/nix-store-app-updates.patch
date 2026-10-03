@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/app_auto_updater.rs b/src-tauri/src/app_auto_updater.rs
-index 059475832cf288f439fee536f6f01141f1c40488..6c4f1f2a7f25f66a8bc701d559c428dc2c593b3e 100644
+index 96d2112a74d4dbfe4921c07f3ae523fae390afb1..51e5797e88d3b677e72d0d3ecf81967ef896152b 100644
 --- a/src-tauri/src/app_auto_updater.rs
 +++ b/src-tauri/src/app_auto_updater.rs
-@@ -520,9 +520,24 @@ impl AppAutoUpdater {
+@@ -520,15 +520,31 @@ impl AppAutoUpdater {
        || Path::new("/etc/zypp/repos.d/donutbrowser.repo").exists()
    }
  
@@ -23,6 +23,13 @@ index 059475832cf288f439fee536f6f01141f1c40488..6c4f1f2a7f25f66a8bc701d559c428dc
 +      );
 +      return true;
 +    }
++
+     // flatpak and snapd update these installs. Nothing inside the sandbox can
+     // replace the app, so report the release the way a repository install does
+     // instead of downloading a .deb that cannot be installed from in here.
+     if crate::app_dirs::linux_sandbox().is_some() {
+       return true;
+     }
 +
      let installation_method = self.detect_linux_installation_method();
      match installation_method {
