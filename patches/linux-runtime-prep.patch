@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/extraction.rs b/src-tauri/src/extraction.rs
-index 07350d0cf8a6429bdc92916418babac5bbf5b0de..eb339c03ec652e83b00bed58df005f3aef76ec02 100644
+index 8dd4a2acd51772ad5c481024a09f61a0c15cc027..383d06d3b0a035d659a7b357fc08caa9eb55fd7d 100644
 --- a/src-tauri/src/extraction.rs
 +++ b/src-tauri/src/extraction.rs
-@@ -396,6 +396,11 @@ impl Extractor {
+@@ -390,6 +390,11 @@ impl Extractor {
            }
          }
  
@@ -11,14 +11,14 @@ index 07350d0cf8a6429bdc92916418babac5bbf5b0de..eb339c03ec652e83b00bed58df005f3a
 +          crate::platform_browser::linux::prepare_linux_browser_runtime(&path)?;
 +        }
 +
-         log::info!(
-           "Successfully extracted {} {} to: {}",
+         log::debug!(
+           "Extracted browser={} version={version} executable={}",
            browser_type.as_str(),
 diff --git a/src-tauri/src/platform_browser.rs b/src-tauri/src/platform_browser.rs
-index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1da6148fa 100644
+index ae0d71b94c349661a3d0a88283464498384ecc83..7998fa32ed31ec521841a3575e703c54f47f62b4 100644
 --- a/src-tauri/src/platform_browser.rs
 +++ b/src-tauri/src/platform_browser.rs
-@@ -486,96 +486,337 @@ pub mod windows {
+@@ -536,6 +536,308 @@ pub mod windows {
  #[allow(dead_code)]
  pub mod linux {
    use super::*;
@@ -117,26 +117,16 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +        .into(),
 +      );
 +    }
- 
--  pub async fn launch_browser_process(
--    executable_path: &std::path::Path,
--    args: &[String],
--  ) -> Result<std::process::Child, Box<dyn std::error::Error + Send + Sync>> {
-     log::info!(
--      "Launching browser on Linux: {:?} with args: {:?}",
--      executable_path,
--      args
++
++    log::info!(
 +      "Patched ELF interpreter for {}: {} -> {}",
 +      path.display(),
 +      current_interpreter,
 +      target_interpreter
-     );
++    );
 +    Ok(true)
 +  }
- 
--    // Check if the executable exists and is executable
--    if !executable_path.exists() {
--      return Err(format!("Browser executable not found: {:?}", executable_path).into());
++
 +  fn collect_elf_candidates(
 +    dir: &Path,
 +    candidates: &mut Vec<PathBuf>,
@@ -153,11 +143,8 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +      if is_elf_executable(&path)? {
 +        candidates.push(path);
 +      }
-     }
- 
--    // Check if we can read the executable to detect architecture issues early
--    if let Err(e) = std::fs::File::open(executable_path) {
--      return Err(format!("Cannot access browser executable: {}", e).into());
++    }
++
 +    Ok(())
 +  }
 +
@@ -191,11 +178,8 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +      if seen_paths.insert(path.clone()) {
 +        unique_paths.push(path);
 +      }
-     }
- 
--    // Ensure the executable has proper permissions
--    if let Err(e) = std::fs::metadata(executable_path) {
--      return Err(format!("Cannot get executable metadata: {}", e).into());
++    }
++
 +    let mut patched_files = 0usize;
 +    let mut inspected_files = 0usize;
 +    for path in unique_paths {
@@ -207,34 +191,15 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +          &target_interpreter,
 +        )?);
 +      }
-     }
- 
--    // On Linux, we might need to set LD_LIBRARY_PATH for some browsers
--    let mut cmd = Command::new(executable_path);
--    cmd.args(args);
++    }
++
 +    log::info!(
 +      "Linux browser runtime prepared for {} ({} ELF executables inspected, {} patched)",
 +      executable_path.display(),
 +      inspected_files,
 +      patched_files
 +    );
- 
--    // Ensure the library path includes the installation directory
--    if let Some(install_dir) = executable_path.parent() {
--      let mut ld_library_path = Vec::new();
--
--      // Add multiple potential library directories
--      let lib_dirs = [
--        install_dir.join("lib"),
--        install_dir.join("../lib"),    // Parent directory lib
--        install_dir.join("../../lib"), // Grandparent directory lib
--        install_dir.to_path_buf(),     // Installation directory itself
--      ];
--
--      for lib_dir in &lib_dirs {
--        if lib_dir.exists() {
--          ld_library_path.push(lib_dir.to_string_lossy().to_string());
--        }
++
 +    Ok(())
 +  }
 +
@@ -261,37 +226,22 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +    for lib_dir in &lib_dirs {
 +      if lib_dir.exists() {
 +        push_path(lib_dir.to_string_lossy().to_string());
-       }
++      }
 +    }
- 
--      // Add common system library paths that might be needed
--      let system_lib_paths = [
--        "/usr/lib/x86_64-linux-gnu",
--        "/usr/lib/aarch64-linux-gnu",
--        "/lib/x86_64-linux-gnu",
--        "/lib/aarch64-linux-gnu",
--      ];
++
 +    let system_lib_paths = [
 +      "/usr/lib/x86_64-linux-gnu",
 +      "/usr/lib/aarch64-linux-gnu",
 +      "/lib/x86_64-linux-gnu",
 +      "/lib/aarch64-linux-gnu",
 +    ];
- 
--      for lib_path in &system_lib_paths {
--        let path = std::path::Path::new(lib_path);
--        if path.exists() {
--          ld_library_path.push(lib_path.to_string());
--        }
++
 +    for lib_path in &system_lib_paths {
 +      if Path::new(lib_path).exists() {
 +        push_path((*lib_path).to_string());
-       }
++      }
 +    }
- 
--      // Preserve existing LD_LIBRARY_PATH
--      if let Ok(existing_path) = std::env::var("LD_LIBRARY_PATH") {
--        ld_library_path.push(existing_path);
++
 +    for env_var in ["NIX_LD_LIBRARY_PATH", "LD_LIBRARY_PATH"] {
 +      if let Ok(existing_path) = std::env::var(env_var) {
 +        if !existing_path.is_empty() {
@@ -299,13 +249,9 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +            push_path(path.to_string());
 +          }
 +        }
-       }
++      }
 +    }
- 
--      // Set the combined LD_LIBRARY_PATH
--      if !ld_library_path.is_empty() {
--        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
--        log::info!("Set LD_LIBRARY_PATH to: {}", ld_library_path.join(":"));
++
 +    (!library_path.is_empty()).then(|| library_path.join(":"))
 +  }
 +
@@ -334,28 +280,19 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +    ] {
 +      if let Ok(value) = std::env::var(var) {
 +        actions.push(LinuxEnvAction::Set(var, value));
-       }
-     }
- 
--    // Propagate DISPLAY only when this session actually has an X11 display.
--    // Forcing DISPLAY=:0 breaks Wayland-only sessions (there is no X server on
--    // :0, so any X11 client launched with it set will fail to connect). When
--    // DISPLAY is set the child already inherits it from our environment, so
--    // setting it explicitly here is purely defensive; when it's unset we leave
--    // it unset and let the browser use Wayland.
-     if let Ok(display) = std::env::var("DISPLAY") {
--      cmd.env("DISPLAY", display);
++      }
++    }
++
++    if let Ok(display) = std::env::var("DISPLAY") {
 +      actions.push(LinuxEnvAction::Set("DISPLAY", display));
 +    } else {
 +      actions.push(LinuxEnvAction::Remove("DISPLAY"));
-     }
- 
--    // Set MOZ_ENABLE_WAYLAND for better Wayland support
-     if std::env::var("WAYLAND_DISPLAY").is_ok() {
--      cmd.env("MOZ_ENABLE_WAYLAND", "1");
++    }
++
++    if std::env::var("WAYLAND_DISPLAY").is_ok() {
 +      actions.push(LinuxEnvAction::Set("MOZ_ENABLE_WAYLAND", "1".to_string()));
-     }
- 
++    }
++
 +    actions
 +  }
 +
@@ -387,35 +324,77 @@ index c44d7077833cc0c86c8da8158c28de149f2006b4..db87bc9c4bfe86e061530b88f6c25ce1
 +
 +    Ok(cmd)
 +  }
-+
-+
-+  pub async fn launch_browser_process(
-+    executable_path: &std::path::Path,
-+    args: &[String],
-+  ) -> Result<std::process::Child, Box<dyn std::error::Error + Send + Sync>> {
-+    log::info!(
-+      "Launching browser on Linux: {:?} with args: {:?}",
-+      executable_path,
-+      args
-+    );
-+
-+    // Check if the executable exists and is executable
-+    if !executable_path.exists() {
-+      return Err(format!("Browser executable not found: {:?}", executable_path).into());
-+    }
-+
-+    // Check if we can read the executable to detect architecture issues early
-+    if let Err(e) = std::fs::File::open(executable_path) {
-+      return Err(format!("Cannot access browser executable: {}", e).into());
-+    }
-+
-+    // Ensure the executable has proper permissions
-+    if let Err(e) = std::fs::metadata(executable_path) {
-+      return Err(format!("Cannot get executable metadata: {}", e).into());
-+    }
-+
+ 
+   pub async fn launch_browser_process(
+     executable_path: &std::path::Path,
+@@ -562,69 +864,7 @@ pub mod linux {
+       return Err(format!("Cannot get executable metadata: {}", e).into());
+     }
+ 
+-    // On Linux, we might need to set LD_LIBRARY_PATH for some browsers
+-    let mut cmd = Command::new(executable_path);
+-    cmd.args(args);
+-
+-    // Ensure the library path includes the installation directory
+-    if let Some(install_dir) = executable_path.parent() {
+-      let mut ld_library_path = Vec::new();
+-
+-      // Add multiple potential library directories
+-      let lib_dirs = [
+-        install_dir.join("lib"),
+-        install_dir.join("../lib"),    // Parent directory lib
+-        install_dir.join("../../lib"), // Grandparent directory lib
+-        install_dir.to_path_buf(),     // Installation directory itself
+-      ];
+-
+-      for lib_dir in &lib_dirs {
+-        if lib_dir.exists() {
+-          ld_library_path.push(lib_dir.to_string_lossy().to_string());
+-        }
+-      }
+-
+-      // Add common system library paths that might be needed
+-      let system_lib_paths = [
+-        "/usr/lib/x86_64-linux-gnu",
+-        "/usr/lib/aarch64-linux-gnu",
+-        "/lib/x86_64-linux-gnu",
+-        "/lib/aarch64-linux-gnu",
+-      ];
+-
+-      for lib_path in &system_lib_paths {
+-        let path = std::path::Path::new(lib_path);
+-        if path.exists() {
+-          ld_library_path.push(lib_path.to_string());
+-        }
+-      }
+-
+-      // Preserve existing LD_LIBRARY_PATH
+-      if let Ok(existing_path) = std::env::var("LD_LIBRARY_PATH") {
+-        ld_library_path.push(existing_path);
+-      }
+-
+-      // Set the combined LD_LIBRARY_PATH
+-      if !ld_library_path.is_empty() {
+-        cmd.env("LD_LIBRARY_PATH", ld_library_path.join(":"));
+-        log::debug!("LD_LIBRARY_PATH={}", ld_library_path.join(":"));
+-      }
+-    }
+-
+-    // Propagate DISPLAY only when this session actually has an X11 display.
+-    // Forcing DISPLAY=:0 breaks Wayland-only sessions (there is no X server on
+-    // :0, so any X11 client launched with it set will fail to connect). When
+-    // DISPLAY is set the child already inherits it from our environment, so
+-    // setting it explicitly here is purely defensive; when it's unset we leave
+-    // it unset and let the browser use Wayland.
+-    if let Ok(display) = std::env::var("DISPLAY") {
+-      cmd.env("DISPLAY", display);
+-    }
+-
+-    // Set MOZ_ENABLE_WAYLAND for better Wayland support
+-    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+-      cmd.env("MOZ_ENABLE_WAYLAND", "1");
+-    }
 +    let mut cmd = create_linux_command(executable_path, args)?;
-+
+ 
      // Warn only when running truly headless — i.e. NEITHER X11 nor Wayland is
      // available. Using OR here would fire on every normal Wayland-only session
-     // (DISPLAY unset) or X11-only session (WAYLAND_DISPLAY unset).

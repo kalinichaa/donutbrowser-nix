@@ -1,5 +1,5 @@
 diff --git a/src-tauri/build.rs b/src-tauri/build.rs
-index f6b9c0b3b317f8e228c343eae0ac707770db7664..d2a8c8f5e9688fe0840c82ea9ee7ec70384c5296 100644
+index 4e5b03b903a1fb84b0b000df18d27352a703ae5e..23363ea2674fbb826768ef6371cc721c6afd580e 100644
 --- a/src-tauri/build.rs
 +++ b/src-tauri/build.rs
 @@ -2,13 +2,18 @@ fn main() {
@@ -23,32 +23,36 @@ index f6b9c0b3b317f8e228c343eae0ac707770db7664..d2a8c8f5e9688fe0840c82ea9ee7ec70
  
    if build_target.ends_with("-apple-darwin") {
      println!("cargo:rustc-link-lib=framework=CoreFoundation");
-@@ -75,9 +80,13 @@ fn main() {
-       embed_windows_manifest();
+@@ -83,7 +88,9 @@ fn main() {
        println!("cargo:rustc-link-arg-bins=/MANIFEST:NO");
      }
--  } else {
-+  } else if !sidecar_only {
-     println!("cargo:warning=Skipping tauri_build: external binaries not found. This is expected when building sidecar binaries.");
- 
-+    if build_target.contains("windows") {
-+      embed_windows_manifest();
+   } else {
+-    println!("cargo:warning=Skipping tauri_build: external binaries not found. This is expected when building sidecar binaries.");
++    if !sidecar_only {
++      println!("cargo:warning=Skipping tauri_build: external binaries not found. This is expected when building sidecar binaries.");
 +    }
-+  } else {
+ 
      if build_target.contains("windows") {
        embed_windows_manifest();
-     }
-@@ -106,13 +115,7 @@ fn external_binaries_exist() -> bool {
-   } else {
-     format!("donut-proxy-{}", target)
-   };
+@@ -107,15 +114,16 @@ fn external_binaries_exist() -> bool {
+ 
+   let binaries_dir = PathBuf::from(&manifest_dir).join("binaries");
+ 
+-  // Must match tauri.conf.json externalBin. donut-proxy is a cargo bin of this
+-  // crate, which the bundler packages on its own.
 -  let xray_name = if target.contains("windows") {
 -    format!("xray-{}.exe", target)
--  } else {
++  // Check for all required external binaries (must match tauri.conf.json
++  // externalBin). The nix packaging swaps the bundled xray for the donut-proxy
++  // sidecar it builds itself, so the presence check is donut-proxy here.
++  let donut_proxy_name = if target.contains("windows") {
++    format!("donut-proxy-{}.exe", target)
+   } else {
 -    format!("xray-{}", target)
--  };
--
--  binaries_dir.join(&donut_proxy_name).exists() && binaries_dir.join(&xray_name).exists()
++    format!("donut-proxy-{}", target)
+   };
+ 
+-  binaries_dir.join(&xray_name).exists()
 +  binaries_dir.join(&donut_proxy_name).exists()
  }
  
