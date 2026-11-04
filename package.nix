@@ -68,10 +68,10 @@
 
 let
   pname = "donutbrowser";
-  version = "0.32.0";
-  srcHash = "sha256-MK58CzT701qPys8bbaAi2HUyMAR1RYBme7be52g/a3U=";
-  pnpmDepsHash = "sha256-XW4MZL+6/ytXSsYyVUgKyqUQbpDyuUBJkvTmzYzQFvo=";
-  cargoDepsHash = "sha256-Tccdrs5AMduduWr4twDrj5T1+7Zfao5KoRNjMME2g5s=";
+  version = "0.36.0";
+  srcHash = "sha256-XOXR3kj0LuYc2qkOwbd9MTX+8ud6fX5I8XPkyeEqG/Q=";
+  pnpmDepsHash = "sha256-oGAKcsMCfZjwK/my0BDiTLOKtoLbj3uo3Zh2UfyymDE=";
+  cargoDepsHash = "sha256-/XgZrOuwEqEZ9gweeEaCEeSc/j8nEP/JV1Vq5k03OHs=";
 
   src = fetchFromGitHub {
     owner = "zhom";
@@ -161,7 +161,6 @@ stdenv.mkDerivation {
   patches = [
     ./patches/linux-runtime-prep.patch
     ./patches/nix-store-app-updates.patch
-    ./patches/no-network-fonts.patch
     ./patches/preserve-manual-downloads.patch
     ./patches/quiet-sidecar-builds.patch
   ];
@@ -243,6 +242,7 @@ stdenv.mkDerivation {
   postPatch = ''
     jq '
       .build.beforeBuildCommand = "" |
+      .build.beforeBundleCommand = "" |
       .bundle.targets = ["deb"] |
       .bundle.externalBin = ["binaries/donut-proxy"] |
       .bundle.resources = ( .bundle.resources // {} | del(."binaries/xray-LICENSE.txt") )

@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/downloaded_browsers_registry.rs b/src-tauri/src/downloaded_browsers_registry.rs
-index 86b7097264302752efee5bda5c7c8bb5f71ce007..97ee87f7e69f3f10e90365b2d6e4811a3f0ad5ad 100644
+index f8e73923511e866d1172d65e8fc5019ab11ad4b3..70c0d598679c31f0a9579651887063c617a60ac0 100644
 --- a/src-tauri/src/downloaded_browsers_registry.rs
 +++ b/src-tauri/src/downloaded_browsers_registry.rs
-@@ -258,6 +258,16 @@ impl DownloadedBrowsersRegistry {
+@@ -270,6 +270,16 @@ impl DownloadedBrowsersRegistry {
        running_profiles.iter().cloned().collect();
      let mut cleaned_up = Vec::new();
  
@@ -20,10 +20,10 @@ index 86b7097264302752efee5bda5c7c8bb5f71ce007..97ee87f7e69f3f10e90365b2d6e4811a
      let pending_updates = match self.auto_updater.get_pending_update_versions() {
        Ok(updates) => updates,
 diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
-index 966daa4c8d1aaec0ffd2398aa90480a6251fbd2f..873176bb4589dc146a18687c2dff3f2ab41f1e30 100644
+index 90a67ad8c6e128fbde02e7679954e1bd8aa2873a..41cb795066bbd482cee9fbb9b61866d8786d7d11 100644
 --- a/src-tauri/src/lib.rs
 +++ b/src-tauri/src/lib.rs
-@@ -2981,6 +2981,10 @@ pub fn run_with_builder(
+@@ -3175,6 +3175,10 @@ pub fn run_with_builder(
          // Start periodic cleanup task for unused binaries.
          tauri::async_runtime::spawn(async move {
            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(43200));

@@ -1,8 +1,8 @@
 diff --git a/src-tauri/src/app_auto_updater.rs b/src-tauri/src/app_auto_updater.rs
-index 96d2112a74d4dbfe4921c07f3ae523fae390afb1..51e5797e88d3b677e72d0d3ecf81967ef896152b 100644
+index 1842538aae2772bfff88a57f509d5ce2bbd049de..ca0f41254dbc2cc80d19ad471671b77e0aa19881 100644
 --- a/src-tauri/src/app_auto_updater.rs
 +++ b/src-tauri/src/app_auto_updater.rs
-@@ -520,15 +520,31 @@ impl AppAutoUpdater {
+@@ -681,15 +681,31 @@ impl AppAutoUpdater {
        || Path::new("/etc/zypp/repos.d/donutbrowser.repo").exists()
    }
  
